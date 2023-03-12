@@ -23,7 +23,6 @@ class Car extends Contract {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 4 arguments.' });
         }
         const carAsBytes = await ctx.stub.getState(argsJson.carId);
-        console.log('length', carAsBytes)
         if (carAsBytes.length !== 0) {
             return ({ success: false, message: `Car with ID ${argsJson.carId} already exist` });
         }
