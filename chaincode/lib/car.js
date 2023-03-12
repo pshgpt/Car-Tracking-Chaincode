@@ -3,6 +3,11 @@
 const { Contract } = require('fabric-contract-api');
 const { toDate } = require('../utils/timestamp');
 
+const CarState = {
+    CREATED: 'CREATED',
+    READY_FOR_SALE: 'READY_FOR_SALE',
+    SOLD: 'SOLD'
+};
 class Car extends Contract {
 
 
@@ -19,7 +24,7 @@ class Car extends Contract {
         if (ctx.clientIdentity.getID() !== 'x509::/OU=client+OU=org1+OU=department1/CN=Manufacturer::/C=US/ST=California/L=San Francisco/O=org1.example.com/CN=ca.org1.example.com') {
             return ({ success: false, message: 'Only manufacturer can sell the car' });
         }
-        if (len != 4) {
+        if (len !== 4) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 4 arguments.' });
         }
         const carAsBytes = await ctx.stub.getState(argsJson.carId);
@@ -32,13 +37,13 @@ class Car extends Contract {
             manufacturer: argsJson.manufacturer,
             model: argsJson.model,
             owner: 'Manufacturer',
-            state: 'CREATED',
+            state: CarState.CREATED,
             txId: ctx.stub.getTxID(),
             createdAt: toDate(ctx.stub.getTxTimestamp()),
             updatedAt: toDate(ctx.stub.getTxTimestamp())
         };
         submitTx = await ctx.stub.putState(argsJson.carId, Buffer.from(JSON.stringify(car)));
-        if (submitTx != null) {
+        if (submitTx !== null) {
             return ({ success: true, message: "New car details with ID " + argsJson.carId + " has been successfully created into the blockchain with Transaction ID " + ctx.stub.getTxID() });
         }
         else {
@@ -54,7 +59,7 @@ class Car extends Contract {
         if (ctx.clientIdentity.getID() !== 'x509::/OU=client+OU=org1+OU=department1/CN=Manufacturer::/C=US/ST=California/L=San Francisco/O=org1.example.com/CN=ca.org1.example.com') {
             return ({ success: false, message: 'Only manufacturer can deliver car to the Dealer' });
         }
-        if (len != 1) {
+        if (len !== 1) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 1 arguments.' });
         }
         const carAsBytes = await ctx.stub.getState(argsJson.carId);
@@ -63,15 +68,15 @@ class Car extends Contract {
         }
 
         const car = JSON.parse(carAsBytes.toString());
-        if (car.state !== 'CREATED') {
+        if (car.state !== CarState.CREATED) {
             return ({ success: false, message: `Car with ID ${argsJson.carId} is not in CREATED state` });
         }
-        car.state = 'READY_FOR_SALE';
+        car.state = CarState.READY_FOR_SALE;
         car.owner = 'Dealer'            
         car.updatedAt = toDate(ctx.stub.getTxTimestamp())
 
         submitTx = await ctx.stub.putState(argsJson.carId, Buffer.from(JSON.stringify(car)));
-        if (submitTx != null) {
+        if (submitTx !== null) {
             return ({ success: true, message: "Car has been successfully updated into the blockchain with Transaction ID " + ctx.stub.getTxID() });
         }
         else {
@@ -88,7 +93,7 @@ class Car extends Contract {
             return ({ success: false, message: 'Only Dealer can sell the car' });
         }
 
-        if (len != 2) {
+        if (len !== 2) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 2 arguments.' });
         }
         const carAsBytes = await ctx.stub.getState(argsJson.carId);
@@ -96,15 +101,15 @@ class Car extends Contract {
             return ({ success: false, message: `Car with ID ${argsJson.carId} does not exist` });
         }
         const car = JSON.parse(carAsBytes.toString());
-        if (car.state !== 'READY_FOR_SALE') {
+        if (car.state !== CarState.READY_FOR_SALE) {
             return ({ success: false, message: `Car with ID ${argsJson.carId} is not in READY_FOR_SALE state` });
         }
 
         car.owner = argsJson.owner;
-        car.state = 'SOLD';
+        car.state = CarState.SOLD;
         car.updatedAt = toDate(ctx.stub.getTxTimestamp())
         submitTx = await ctx.stub.putState(argsJson.carId, Buffer.from(JSON.stringify(car)));
-        if (submitTx != null) {
+        if (submitTx !== null) {
             return ({ success: true, message: "Car has been successfully sold and has been updated into the blockchain with Transaction ID " + ctx.stub.getTxID() });
         }
         else {
@@ -117,7 +122,7 @@ class Car extends Contract {
         const argsJson = JSON.parse(args);
         const keys = Object.keys(argsJson);
         const len = keys.length
-        if (len != 2) {
+        if (len !== 2) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 2 arguments.' });
         }
         const iterator = await ctx.stub.getQueryResult("{\"selector\":{\"docType\":\"" + argsJson.docType + "\",\"id\":\"" + argsJson.carId + "\"}}");
@@ -148,8 +153,7 @@ class Car extends Contract {
         const argsJson = JSON.parse(args);
         const keys = Object.keys(argsJson);
         const len = keys.length
-        // To check if the number of arguments are correct
-        if (len != 1) {
+        if (len !== 1) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 1 arguments.' });
         }
         console.log('Car id is', argsJson.carId);
