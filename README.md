@@ -13,4 +13,4 @@ sellToCustomer(ctx, args): This method is used by the dealer to sell a car to a 
 getCarById(ctx, args): This method is used to retrieve a car object by its ID. It takes two arguments: docType and carId. The method checks that the correct number of arguments have been supplied, and returns the car object if it exists in the blockchain.
 
 
-getHistoryByCarId(ctx, args): This method is used to retrieve the history ofa car object by its ID. It takes one arguments: carId. The method checks that the correct number of arguments have been supplied, and returns the history of the car object if it exists in the blockchain.
+getHistoryByCarId(ctx, args): This method is used to retrieve the history of a car object by its ID. It takes one arguments: carId. The method checks that the correct number of arguments have been supplied, and returns the history of the car object if it exists in the blockchain.
