@@ -2,6 +2,7 @@
 
 const { Contract } = require('fabric-contract-api');
 const { toDate } = require('../utils/timestamp');
+const ClientIdentity = require('fabric-shim').ClientIdentity;
 
 const CarState = {
     CREATED: 'CREATED',
@@ -21,8 +22,10 @@ class Car extends Contract {
         const argsJson = JSON.parse(args);
         const keys = Object.keys(argsJson);
         const len = keys.length
-        if (ctx.clientIdentity.getID() !== 'x509::/OU=client+OU=org1+OU=department1/CN=Manufacturer::/C=US/ST=California/L=San Francisco/O=org1.example.com/CN=ca.org1.example.com') {
-            return ({ success: false, message: 'Only manufacturer can sell the car' });
+        const cid = new ClientIdentity(ctx.stub);
+
+        if (!cid.assertAttributeValue('role', 'Manufacturer')) {
+            return ({ success: false, message: 'Only manufacturer can create the car' });
         }
         if (len !== 4) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 4 arguments.' });
@@ -36,7 +39,7 @@ class Car extends Contract {
             id: argsJson.carId,
             manufacturer: argsJson.manufacturer,
             model: argsJson.model,
-            owner: 'Manufacturer',
+            owner: ctx.clientIdentity.getAttributeValue('role'),
             state: CarState.CREATED,
             txId: ctx.stub.getTxID(),
             createdAt: toDate(ctx.stub.getTxTimestamp()),
@@ -56,7 +59,9 @@ class Car extends Contract {
         const argsJson = JSON.parse(args);
         const keys = Object.keys(argsJson);
         const len = keys.length
-        if (ctx.clientIdentity.getID() !== 'x509::/OU=client+OU=org1+OU=department1/CN=Manufacturer::/C=US/ST=California/L=San Francisco/O=org1.example.com/CN=ca.org1.example.com') {
+        const cid = new ClientIdentity(ctx.stub);
+
+        if (!cid.assertAttributeValue('role', 'Manufacturer')) {
             return ({ success: false, message: 'Only manufacturer can deliver car to the Dealer' });
         }
         if (len !== 1) {
@@ -72,12 +77,12 @@ class Car extends Contract {
             return ({ success: false, message: `Car with ID ${argsJson.carId} is not in CREATED state` });
         }
         car.state = CarState.READY_FOR_SALE;
-        car.owner = 'Dealer'            
+        car.owner = 'Dealer';
         car.updatedAt = toDate(ctx.stub.getTxTimestamp())
 
         submitTx = await ctx.stub.putState(argsJson.carId, Buffer.from(JSON.stringify(car)));
         if (submitTx !== null) {
-            return ({ success: true, message: "Car has been successfully updated into the blockchain with Transaction ID " + ctx.stub.getTxID() });
+            return ({ success: true, message: "Car has been successfully delivered to dealer with Transaction ID " + ctx.stub.getTxID() });
         }
         else {
             return ({ success: false, message: "Error while submitting the request" });
@@ -88,8 +93,10 @@ class Car extends Contract {
         let submitTx;
         const argsJson = JSON.parse(args);
         const keys = Object.keys(argsJson);
-        const len = keys.length
-        if (ctx.clientIdentity.getID() !== 'x509::/OU=client+OU=org2+OU=department1/CN=Dealer::/C=US/ST=California/L=San Francisco/O=org2.example.com/CN=ca.org2.example.com') {
+        const len = keys.length;
+        const cid = new ClientIdentity(ctx.stub);
+
+        if (!cid.assertAttributeValue('role', 'Dealer')) {
             return ({ success: false, message: 'Only Dealer can sell the car' });
         }
 
@@ -156,7 +163,6 @@ class Car extends Contract {
         if (len !== 1) {
             return ({ success: false, message: 'Incorrect number of arguments. Expecting 1 arguments.' });
         }
-        console.log('Car id is', argsJson.carId);
         const iterator = await ctx.stub.getHistoryForKey(argsJson.carId);
         const result = [];
         while (true) {
