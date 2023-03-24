@@ -5,7 +5,6 @@ const { FileSystemWallet, X509WalletMixin, Gateway } = require('fabric-network')
 const path = require('path');
 const fs = require('fs');
 const yaml = require('js-yaml');
-const { stringify } = require('querystring');
 
 module.exports = {
     name: "adapter",
@@ -18,28 +17,25 @@ module.exports = {
 
         createUser: {
             async handler(ctx) {
-                let username = ctx.params.userName;
-                let orgName = ctx.params.orgName;
-                let enrollAdminResponse = await this.enrollAdmin(orgName)
+                const username = ctx.params.userName;
+                const orgName = ctx.params.orgName;
+                const roleValue = ctx.params.roleValue;
+                const enrollAdminResponse = await this.enrollAdmin(orgName)
                 if (enrollAdminResponse) {
-                    let registerUserResponse = await this.registerUser(username, orgName)
-                    return registerUserResponse;
+                    return await this.registerUser(username, orgName, roleValue)
                 }
             }
         },
 
         invoke: {
             async handler(ctx) {
-                let chaincodeCode = await this.invoke("mychannel", "mycc", ctx.params.fcn, ctx.params.args, ctx.params.userName, ctx.params.orgName)
-                return chaincodeCode
+                return await this.invoke("mychannel", "mycc", ctx.params.fcn, ctx.params.args, ctx.params.userName, ctx.params.orgName)
             }
         },
 
         query: {
             async handler(ctx) {
-                let chaincodeCode = await this.query("mychannel", "mycc", ctx.params.fcn, ctx.params.args, ctx.params.userName, ctx.params.orgName)
-                return chaincodeCode
-
+                return await this.query("mychannel", "mycc", ctx.params.fcn, ctx.params.args, ctx.params.userName, ctx.params.orgName)
             }
         }
     },
@@ -47,13 +43,14 @@ module.exports = {
     events: {},
 
     methods: {
+
         async enrollAdmin(orgName) {
             const ccpPath = path.resolve(__dirname, '..', 'artifacts', orgName.toLowerCase() + '.yaml');
             const ccpJSON = fs.readFileSync(ccpPath, 'utf8');
             const ccp = yaml.safeLoad(ccpJSON);
 
             try {
-                var adminOrg = "admin" + orgName;
+                const adminOrg = "admin" + orgName;
                 // Create a new CA client for interacting with the CA.
                 const caInfo = ccp.certificateAuthorities['ca-' + orgName.toLowerCase()];
                 const caTLSCACerts = caInfo.tlsCACerts.pem;
@@ -77,17 +74,16 @@ module.exports = {
                 await wallet.import(adminOrg, identity);
                 console.log('Successfully enrolled admin user "admin" and imported it into the wallet');
                 return true;
-
             } catch (error) {
                 console.error(`Failed to enroll admin user "admin": ${error}`);
                 return error;
             }
         },
 
-        async registerUser(username, orgName) {
+        async registerUser(username, orgName, roleValue) {
             const ccpPath = path.resolve(__dirname, '..', 'artifacts', orgName.toLowerCase() + '.yaml');
             try {
-                var adminOrg = "admin" + orgName;
+                const adminOrg = "admin" + orgName;
                 const walletPath = path.join(process.cwd(), 'wallet');
                 const wallet = new FileSystemWallet(walletPath);
                 console.log(`Wallet path: ${walletPath}`);
@@ -114,17 +110,22 @@ module.exports = {
                 // Get the CA client object from the gateway for interacting with the CA.
                 const ca = gateway.getClient().getCertificateAuthority();
                 const adminIdentity = gateway.getCurrentIdentity();
+                // let affiliation = orgName.toLowerCase() + '.department1';
+                // const affiliationService = caClient.newAffiliationService();
+                // const registeredAffiliations = await affiliationService.getAll(adminIdentity);
+                // if(!registeredAffiliations.result.affiliations.some(x => x.name == orgName.toLowerCase())) {
+                // 		console.log('Register new affiliations: %s ', affiliation);
+                // 		await affiliationService.create({name: affiliation, force: true}, adminIdentity);
+                // 	}
 
                 // Register the user, enroll the user, and import the new identity into the wallet.
-                const secret = await ca.register({ affiliation: (orgName.toLowerCase()) + '.department1', enrollmentID: username, role: 'client' }, adminIdentity);
-                const enrollment = await ca.enroll({ enrollmentID: username, enrollmentSecret: secret });
+                const secret = await ca.register({ affiliation: (orgName.toLowerCase()) + '.department1', enrollmentID: username, role: 'client', attrs: [{ name: 'role', value: roleValue, ecert: true }] }, adminIdentity);
+                const enrollment = await ca.enroll({ enrollmentID: username, enrollmentSecret: secret, attr_reqs: [{ name: 'role', optional: false }] });
                 const userIdentity = X509WalletMixin.createIdentity(orgName + 'MSP', enrollment.certificate, enrollment.key.toBytes());
                 await wallet.import(username, userIdentity);
-                console.log('Successfully registered and enrolled admin user "user1" and imported it into the wallet');
-                return true
-
+                return ({ success: true, message: `Successfully registered and enrolled user ${username} and imported it into the wallet` });
             } catch (error) {
-                console.error(`Failed to register user "user1": ${error}`);
+                console.error(`Failed to register user ${username}: ${error}`);
                 return error;
             }
         },
@@ -133,7 +134,7 @@ module.exports = {
             const ccpPath = path.resolve(__dirname, '..', 'artifacts', orgName.toLowerCase() + '.yaml');
             const gateway = new Gateway();
             try {
-                if (gateway != null) {
+                if (gateway !== null) {
                     // Create a new file system based wallet for managing identities.
                     const walletPath = path.join(process.cwd(), 'wallet');
                     const wallet = new FileSystemWallet(walletPath);
@@ -143,7 +144,7 @@ module.exports = {
                     if (!userExists) {
                         console.log('An identity for the user "user1" does not exist in the wallet');
                         console.log('Run the registerUser.js application before retrying');
-                        return;
+                        return ({ success: false, message: `An identity for the user ${username} does not exist in the wallet. Please register the user first.` });
                     }
                     await gateway.connect(ccpPath, { wallet, identity: username, discovery: { enabled: true, asLocalhost: true } });
                     // Get the network (channel) our contract is deployed to.
@@ -154,7 +155,7 @@ module.exports = {
 
                     // Create and Submit the specified transaction.
                     const transaction = contract.createTransaction(fcn);
-                    return JSON.parse((await transaction.submit(JSON.stringify(args))).toString());
+                    return JSON.parse((await transaction.submit(JSON.stringify(args))));
                     //return ("Transaction has been successfully submitted with transaction id " + transaction._transactionId._transaction_id);
                 }
                 else {
@@ -167,12 +168,12 @@ module.exports = {
                 await gateway.disconnect();
             }
         },
-        
+
         async query(channelName, chaincodeName, fcn, args, username, orgName) {
             const ccpPath = path.resolve(__dirname, '..', 'artifacts', orgName.toLowerCase() + '.yaml');
             const gateway = new Gateway();
             try {
-                if (gateway != null) {
+                if (gateway !== null) {
                     // Create a new file system based wallet for managing identities.
                     const walletPath = path.join(process.cwd(), 'wallet');
                     const wallet = new FileSystemWallet(walletPath);
@@ -183,7 +184,7 @@ module.exports = {
                     if (!userExists) {
                         console.log('An identity for the user "user1" does not exist in the wallet');
                         console.log('Run the registerUser.js application before retrying');
-                        return;
+                        return ({ success: false, message: `An identity for the user ${username} does not exist in the wallet. Please register the user first.` });
                     }
 
                     // Create a new gateway for connecting to our peer node.
@@ -197,9 +198,8 @@ module.exports = {
 
                     // Create and Submit the specified transaction.
                     const transaction = contract.createTransaction(fcn);
-                    var result = await transaction.evaluate(JSON.stringify(args));
-                    return JSON.parse(result.toString());
-
+                    const result = await transaction.evaluate(JSON.stringify(args));
+                    return JSON.parse(result);
                 } else {
                     console.error("No gateway initialized");
                 }
