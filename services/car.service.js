@@ -32,10 +32,7 @@ module.exports = {
 		createUser: {
 
 			async handler(ctx) {
-				let response = await ctx.call("adapter.createUser", { userName: ctx.params.userName, orgName: ctx.params.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.createUser", { userName: ctx.params.userName, orgName: ctx.params.orgName, roleValue: ctx.params.roleValue })
 			}
 		},
 
@@ -47,68 +44,53 @@ module.exports = {
 		createCar: {
 			/** @param {Context} ctx  */
 			async handler(ctx) {
-				let args = {
+				const args = {
 					docType: ctx.params.docType,
 					carId: ctx.params.carId,
 					manufacturer: ctx.params.manufacturer,
 					model: ctx.params.model,
 				}
-				let response = await ctx.call("adapter.invoke", { fcn: "createCar", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.invoke", { fcn: "createCar", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
 			}
 		},
 
 		getCarById: {
 			/** @param {Context} ctx  */
 			async handler(ctx) {
-				let args = {
+				const args = {
 					docType: ctx.params.docType,
 					carId: ctx.params.carId,
 				}
-				let response = await ctx.call("adapter.query", { fcn: "getCarById", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.query", { fcn: "getCarById", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
 			}
 		},
 
 		deliverToDealer: {
 			/** @param {Context} ctx  */
 			async handler(ctx) {
-				let args = {
+				const args = {
 					carId: ctx.params.carId,
 				}
-				let response = await ctx.call("adapter.invoke", { fcn: "deliverToDealer", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.invoke", { fcn: "deliverToDealer", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
 			}
 		},
 		sellToCustomer: {
 			/** @param {Context} ctx  */
 			async handler(ctx) {
-				let args = {
+				const args = {
 					carId: ctx.params.carId,
 					owner: ctx.params.owner
 				}
-				let response = await ctx.call("adapter.invoke", { fcn: "sellToCustomer", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.invoke", { fcn: "sellToCustomer", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
 			}
 		},
 		getHistoryByCarId: {
 			/** @param {Context} ctx  */
 			async handler(ctx) {
-				let args = {
+				const args = {
 					carId: ctx.params.carId,
 				}
-				let response = await ctx.call("adapter.query", { fcn: "getHistoryByCarId", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
-				if (response != null) {
-					return response;
-				}
+				return await ctx.call("adapter.query", { fcn: "getHistoryByCarId", args: args, userName: ctx.params.userDetails.userName, orgName: ctx.params.userDetails.orgName })
 			}
 		}
 
